@@ -17,6 +17,28 @@
 
 #include <Servo.h>
 
+
+/* We have two servos, one is the base of the overall mechanisim,
+ * the vertical axis called "y" and the other servo controls the horizontal
+ * axis.
+ *
+ * To avoid complex calculations we do the orientation in two phases.
+ * the north and south photoresistors values are balanced by the Y servo.
+ *
+ * Only once they are balanced we go and balance the value of the east
+ * and west photoresistors using the X servo.
+ *
+ *                 /E\
+ * [ X ] ------- /N * S\----------
+ *   |             /W\
+ *   |
+ *   |
+ *   |----------------------------
+ *                [ Y ]
+ *  ---------------------------------
+ *
+ */
+ 
 Servo x;
 Servo y;
 
@@ -32,6 +54,7 @@ void setup ()
   delay (3000);
 }
 
+/* This function logs the value of each photoresistor to the Serial output */
 void logLight (int n, int s, int e, int w)
 {
   Serial.print (n);
@@ -46,14 +69,20 @@ void logLight (int n, int s, int e, int w)
 
 void loop ()
 {
+  /* When we reach the bounds of the Y servo we have to balance the X one*/
   bool jump = false;
+  
+  /* We read the value of each photoresistor */ 
   int n = analogRead(0);
   int s = analogRead(1);
   int e = analogRead(2);
   int w = analogRead(3);
 
+  /* We log the values in the serial port */
   logLight (n,s,e,w);
 
+  /* Balancing the Y axis, note that we use SQRT(POW()) of the difference
+     to obtain the absolute value */
   if (sqrt(pow(n - s, 2)) > 60 )
   {
     int pos = y.read ();
@@ -63,6 +92,9 @@ void loop ()
     if (n > s)
       pos = pos - 1;
 
+    /* If we reach the bounds of the servo we hold the position and
+     * jump to the X balancing phase
+     */
     if (pos > 180)
     {
       pos = 180;
@@ -76,7 +108,8 @@ void loop ()
 
     y.write (pos);
   }
-
+  
+  /* We only balance X if the Y servo is balanced or if it reached its 0-180 degree bounds */
   if ( (jump || sqrt(pow(n - s, 2)) < 60) && (pow(e - w, 2)) > 80 )
   {
     int pos = x.read ();
@@ -94,6 +127,7 @@ void loop ()
     x.write (pos);
   }
 
+  /* We put a sensible delay to avoid fast spinning and shredding the model into pieces ;-) */
   delay (30);
 }
 
